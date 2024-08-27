@@ -202,7 +202,7 @@ def process_patient():
     if not prompt:
         return jsonify({"error": "No prompt provided."}), 400
 
-    csv_file_path = r"D:\Jupiter\New_Model\data\patientinfo.csv"  # Path to your CSV file
+    csv_file_path = r"data\patientinfo.csv"  # Path to your CSV file
 
     patient_data = extract_patient_info(prompt)
 
