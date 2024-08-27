@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose Operation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to right, #00c6ff, #0072ff);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        .option-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin: 10px 0;
+            transition: background 0.3s, transform 0.2s;
+            display: block;
+            width: 100%;
+        }
+
+        .option-button:hover {
+            background: #45a049;
+        }
+
+        .option-button:active {
+            background: #397d35;
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Choose Operation</h1>
+        <button class="option-button" id="add-patient-button">Add New Patient</button>
+        <button class="option-button" id="update-patient-button">Update Patient</button>
+        <button class="option-button" id="chat-patient-data-button">Chat with Patient Data</button>
+    </div>
+
+    <script>
+        // Handle "Add New Patient" button click
+        document.getElementById('add-patient-button').addEventListener('click', function() {
+            window.location.href = '/chatbot';
+        });
+
+        // Handle "Update Patient" button click
+        document.getElementById('update-patient-button').addEventListener('click', function() {
+            fetch('/execute/update')
+                .then(response => response.json())
+                .then(data => alert(data.message));
+        });
+
+        // Handle "Chat with Patient Data" button click
+        document.getElementById('chat-patient-data-button').addEventListener('click', function() {
+            fetch('/execute/retrieve')
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    // Open chatbot UI in a new window
+                    window.open('/chatbot', '_blank');
+                });
+        });
+    </script>
+</body>
+</html>
