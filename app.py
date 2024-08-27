@@ -14,11 +14,10 @@ app = Flask(__name__)
 
 # Database connection configuration
 dbconfig = {
-    "host": "localhost",
-    "port": "3306",
-    "user": "root",
-    "password": "anas123",
-    "database": "acr1"
+    "host":"database-1.cpgwwc6uys5f.us-east-1.rds.amazonaws.com",
+    "user":"admin",
+    "password":"ACR12345",
+    "database":"ACR_NEW"
 }
 
 # Initialize connection pool

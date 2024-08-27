@@ -366,11 +366,10 @@ def validate_and_save_to_csv(patient_data, csv_file_path):
 def insert_into_db(patient_data):
     try:
         connection = mysql.connector.connect(
-            host='localhost',
-            port='3306',
-            user='root',
-            password='anas123',
-            database='acr1'
+            host='database-1.cpgwwc6uys5f.us-east-1.rds.amazonaws.com',
+            user='admin',
+            password='ACR12345',
+            database='ACR_NEW'
         )
         if connection.is_connected():
             cursor = connection.cursor()
