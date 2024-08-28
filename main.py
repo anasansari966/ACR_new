@@ -1,8 +1,9 @@
-from flask import Flask, request, jsonify
+import csv
 import json
 import os
 import pandas as pd
 from dateutil import parser
+from flask import Flask, request, jsonify
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
@@ -171,11 +172,11 @@ def process_patient():
     missing_fields, patient_data = validate_and_save_to_csv(patient_data, csv_file_path)
 
     if missing_fields:
-        return jsonify({"missing_fields": missing_fields, "data": patient_data}), 400
+        return jsonify({"patient_id": patient_data['patient_id'], "missing_fields": missing_fields, "data": patient_data}), 400
 
     save_status = insert_into_db(patient_data)
     if save_status == "success":
-        return jsonify({"message": "Data saved successfully in the database.", "data": patient_data}), 200
+        return jsonify({"message": "Data saved successfully in the database.", "patient_id": patient_data['patient_id'], "data": patient_data}), 200
     elif save_status == "duplicate":
         return jsonify({"error": "Record already exists in the database."}), 400
     else:
@@ -205,14 +206,14 @@ def complete_missing_fields():
         missing_fields = [field for field in df.columns if not patient_data.get(field)]
 
         if missing_fields:
-            return jsonify({"missing_fields": missing_fields, "data": patient_data}), 400
+            return jsonify({"patient_id": patient_id, "missing_fields": missing_fields, "data": patient_data}), 400
 
         df.update(pd.DataFrame([patient_data]))
         df.to_csv(csv_file_path, index=False)
 
         save_status = insert_into_db(patient_data)
         if save_status == "success":
-            return jsonify({"message": "Missing data completed and saved successfully.", "data": patient_data}), 200
+            return jsonify({"message": "Missing data completed and saved successfully.", "patient_id": patient_id, "data": patient_data}), 200
         elif save_status == "duplicate":
             return jsonify({"error": "Record already exists in the database."}), 400
         else:
