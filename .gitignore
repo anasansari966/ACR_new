@@ -2,7 +2,6 @@ venv
 .venv
 .env
 .env
-patient_ret.py
 patient_upd.py
 patientinfo.csv
 patientinfo_ext.py
