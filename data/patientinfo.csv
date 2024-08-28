@@ -1,0 +1,6 @@
+patient_id,first name,last name,gender,dob,height,weight,insurance,policy_number,medical_record_number,hospital_record_number
+1,Anas,Ansari,female,1987-07-30,167,63,United Healthcare,UHC9876543,MR008,HR008
+2,Anas,Ansari,male,1976-12-04,170,72,Aetna,AET3456789,MR007,HR007
+3,Daniel,Taylor,male,1976-12-04,170,72,Aetna,AET3456789,MR007,HR007
+4,Daniel,Taylor,male,1976-12-04,170,72,Aetna,AET3456789,MR007,HR007
+5,Sophia,Martinez,female,1990-02-12,155,50,Medicare,MED1234567,MR006,HR006

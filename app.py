@@ -307,9 +307,21 @@ def generate_natural_language_description(patient_data):
     return description
 
 def determine_operation(prompt):
-    add_keywords = ['add', 'new', 'create']
-    update_keywords = ['update', 'modify', 'change']
-    retrieve_keywords = ['retrieve', 'get', 'fetch', 'show', 'display']
+    # Expanded lists of keywords for different operations
+    add_keywords = [
+        'add', 'new', 'create', 'insert', 'include', 'register', 'enlist', 'submit',
+        'add in', 'introduce', 'record', 'incorporate', 'append', 'attach', 'enter'
+    ]
+    update_keywords = [
+        'update', 'modify', 'change', 'alter', 'revise', 'adjust', 'amend', 'refresh',
+        'edit', 'correct', 'patch', 'rework', 'upgrade', 'replace', 'enhance', 'fix',
+        'overhaul', 'redefine'
+    ]
+    retrieve_keywords = [
+        'retrieve', 'get', 'fetch', 'show', 'display', 'list', 'present', 'access',
+        'obtain', 'query', 'extract', 'report', 'uncover', 'reveal', 'bring up',
+        'check', 'fetch details', 'summarize', 'provide'
+    ]
 
     prompt_lower = prompt.lower()
 
@@ -322,6 +334,8 @@ def determine_operation(prompt):
     else:
         return 'unknown'
 
+
+
 @app.route('/process_text', methods=['POST'])
 def process_text():
     data = request.json
@@ -330,6 +344,7 @@ def process_text():
     if not prompt:
         return jsonify({"error": "Text prompt is required."}), 400
 
+    # Determine the operation type
     operation = determine_operation(prompt)
 
     if operation == 'retrieve':
@@ -345,6 +360,7 @@ def process_text():
         else:
             return jsonify({"error": "Patient ID not found in the prompt."}), 400
 
+    # Extract patient information from the prompt
     extracted_info = extract_patient_info(prompt)
 
     if 'error' in extracted_info:
@@ -376,6 +392,7 @@ def process_text():
 
     else:
         return jsonify({"error": "Invalid operation. Use 'add', 'update', or 'retrieve'."}), 400
+
 
 
 if __name__ == '__main__':
