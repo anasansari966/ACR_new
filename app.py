@@ -9,15 +9,18 @@ from flask import Flask, request, jsonify
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 
 # Database connection configuration
 dbconfig = {
-    "host":"database-1.cpgwwc6uys5f.us-east-1.rds.amazonaws.com",
+    "host":"database-2.cpgwwc6uys5f.us-east-1.rds.amazonaws.com",
+    "port":"3306",
     "user":"admin",
-    "password":"ACR12345",
-    "database":"ACR_NEW"
+    "password":"acrroot987654321",
+    "database":"user_information"
 }
 
 # Initialize connection pool
@@ -27,7 +30,7 @@ def connect_to_db():
     return pool.get_connection()
 
 # Ensure you have set your OpenAI API key in the environment variables
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Initialize the ChatGPT model with ChatGPT 4.0
 llm = ChatOpenAI(model_name="gpt-4", temperature=0.0)
