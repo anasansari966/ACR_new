@@ -86,33 +86,16 @@ def process():
         return jsonify({"missing_fields": missing_fields, "preview": patient_data})
 
     # Proceed to validation and saving
-    return jsonify({"preview": patient_data, "confirmation_needed": True})
+    missing_fields, patient_data = validate_and_save(patient_data, csv_file_path)
+
+    return jsonify({"preview": patient_data})
 
 
-@app.route('/request_missing_data', methods=['POST'])
-def request_missing_data():
-    patient_data = request.json.get('data')
-    missing_fields = request.json.get('missing_fields')
-
-    if not patient_data or not missing_fields:
-        return jsonify({"error": "Invalid data provided"}), 400
-
-    response_message = "The following fields are missing: " + ", ".join(missing_fields) + ". Please provide the values for these fields."
-
-    return jsonify({"message": response_message, "missing_fields": missing_fields, "data": patient_data})
-
-
-@app.route('/update_missing_data', methods=['POST'])
-def update_missing_data():
+@app.route('/update', methods=['POST'])
+def update():
     user_input = request.json.get('input')
     missing_field = request.json.get('field')
     patient_data = request.json.get('data')
-
-    if patient_data is None:
-        return jsonify({'error': 'No patient data provided'}), 400
-
-    if missing_field is None:
-        return jsonify({'error': 'No missing field specified'}), 400
 
     logging.debug(f"Updating field '{missing_field}' with value: {user_input}")
 
@@ -131,29 +114,10 @@ def update_missing_data():
         return jsonify({"missing_fields": missing_fields, "preview": patient_data})
 
     # Proceed to validation and saving
-    return jsonify({"preview": patient_data, "confirmation_needed": True})
+    csv_file_path = "data/patientinfo.csv"
+    missing_fields, patient_data = validate_and_save(patient_data, csv_file_path)
 
-
-@app.route('/confirmation', methods=['POST'])
-def confirmation():
-    user_input = request.json.get('confirmation')
-    patient_data = request.json.get('data')
-
-    if not patient_data:
-        return jsonify({"error": "No patient data provided"}), 400
-
-    if user_input.lower() == 'yes':
-        logging.debug("User confirmed data. Proceeding to save.")
-        csv_file_path = "data/patientinfo.csv"
-        missing_fields, patient_data = validate_and_save(patient_data, csv_file_path)
-        return jsonify({"message": "Patient data has been updated successfully.", "data": patient_data})
-
-    elif user_input.lower() == 'no':
-        logging.info("User declined to save data.")
-        return jsonify({"message": "Data was not saved."})
-
-    else:
-        return jsonify({"error": "Invalid confirmation input. Please respond with 'yes' or 'no'."}), 400
+    return jsonify({"preview": patient_data})
 
 
 def extract_patient_info(prompt):
