@@ -10,3 +10,5 @@ pipeline.py
 retrieve.py
 server.py
 insert.py
+app.py
+insert.py
