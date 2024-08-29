@@ -1,45 +1,41 @@
 import json
-import numpy as np
 import os
 import re
+import csv
 import pandas as pd
 from dateutil import parser
-import mysql.connector
-from mysql.connector import pooling
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
+import mysql.connector
+from mysql.connector import pooling
 from dotenv import load_dotenv
-
-load_dotenv()
+import logging
 
 app = Flask(__name__)
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Database connection configuration
 dbconfig = {
-    "host": "database-2.cpgwwc6uys5f.us-east-1.rds.amazonaws.com",
+    "host": "localhost",
     "port": "3306",
-    "user": "admin",
-    "password": "acrroot987654321",
-    "database": "user_information"
+    "user": "root",
+    "password": "anas123",
+    "database": "acr1"
 }
 
 # Initialize connection pool
 pool = pooling.MySQLConnectionPool(pool_name="mypool", pool_size=5, **dbconfig)
 
-
-def connect_to_db():
-    return pool.get_connection()
-
-
-# Ensure you have set your OpenAI API key in the environment variables
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 # Initialize the ChatGPT model with ChatGPT 4.0
 llm = ChatOpenAI(model_name="gpt-4", temperature=0.0)
 
-# Define the prompt template for extracting information
+# Define the prompt templates for extracting and querying data
 prompt_template = PromptTemplate(
     input_variables=["prompt"],
     template="""
@@ -79,149 +75,123 @@ prompt_template = PromptTemplate(
     """
 )
 
-# Create a LangChain instance
+query_prompt_template = PromptTemplate(
+    input_variables=["prompt", "patient_data"],
+    template="""
+    Based on the following prompt: "{prompt}",
+    search through the provided patient data and return any relevant information in natural language.
+
+    Patient Data:
+    {patient_data}
+
+    Please provide a clear and concise response.
+    """
+)
+
 chain = LLMChain(llm=llm, prompt=prompt_template)
+query_chain = LLMChain(llm=llm, prompt=query_prompt_template)
 
-# In-memory storage for missing patient data
-temporary_storage = {}
-
+def connect_to_db():
+    return pool.get_connection()
 
 def extract_patient_info(prompt):
+    logging.debug(f"Extracting patient info from prompt: {prompt}")
     extracted_info = chain.run(prompt=prompt)
 
-    if isinstance(extracted_info, dict):
-        return extracted_info
-
     if not extracted_info:
+        logging.error("Model response is empty or invalid.")
         return {"error": "Model response is empty or invalid."}
 
     try:
         patient_data = json.loads(extracted_info)
+        required_fields = [
+            'first name', 'last name', 'gender', 'dob', 'height', 'weight',
+            'insurance', 'policy_number', 'medical_record_number', 'hospital_record_number'
+        ]
+        patient_data['dob'] = format_date(patient_data.get('dob', ''))
     except json.JSONDecodeError:
+        logging.error("Error decoding JSON from the model response.")
         return {"error": "Error decoding JSON from the model response."}
 
-    valid_fields = {
-        'patient_id': patient_data.get('patient_id'),
-        'first name': patient_data.get('first name'),
-        'last name': patient_data.get('last name'),
-        'gender': patient_data.get('gender'),
-        'dob': format_date(patient_data.get('dob', '')),
-        'height': clean_value(patient_data.get('height', '')),
-        'weight': clean_value(patient_data.get('weight', '')),
-        'insurance': patient_data.get('insurance'),
-        'policy_number': patient_data.get('policy_number'),
-        'medical_record_number': patient_data.get('medical_record_number'),
-        'hospital_record_number': patient_data.get('hospital_record_number')
-    }
-
-    if not valid_fields['patient_id']:
-        valid_fields['patient_id'] = generate_patient_id(r"data\patientinfo.csv")
-
-    missing_fields = [field for field, value in valid_fields.items() if value is None or value == '']
-
-    if missing_fields:
-        patient_id = valid_fields['patient_id']
-        temporary_storage[patient_id] = valid_fields
-        return {"error": "Missing fields", "missing_fields": missing_fields}
-
-    return valid_fields
-
-
-def clean_value(value):
-    return re.sub(r'[^\d.]', '', value)
-
+    return patient_data
 
 def format_date(date_str):
     try:
         parsed_date = parser.parse(date_str)
         return parsed_date.strftime('%Y-%m-%d')
-    except ValueError:
+    except (ValueError, TypeError):
+        logging.warning(f"Date parsing failed for: {date_str}")
         return date_str
-
 
 def generate_patient_id(csv_file_path):
     if os.path.isfile(csv_file_path):
         df = pd.read_csv(csv_file_path)
+        df['patient_id'] = pd.to_numeric(df['patient_id'], errors='coerce')
+        df.dropna(subset=['patient_id'], inplace=True)
         if not df.empty:
-            return df['patient_id'].max() + 1
+            max_id = df['patient_id'].max()
+            return int(max_id) + 1
     return 1
 
+def save_to_db(patient_data):
+    try:
+        connection = connect_to_db()
+        cursor = connection.cursor()
 
-def add_patient_data_csv(patient_data, csv_file_path):
-    if not os.path.isfile(csv_file_path):
-        return {"error": "CSV file does not exist."}
+        insert_query = """
+        INSERT INTO patientinfo (
+            patient_id, first_name, last_name, gender, dob, height, weight,
+            insurance, policy_number, medical_record_number, hospital_record_number
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
 
-    df = pd.read_csv(csv_file_path)
+        data = (
+            patient_data['patient_id'],
+            patient_data.get('first name', ''),
+            patient_data.get('last name', ''),
+            patient_data.get('gender', ''),
+            patient_data.get('dob', ''),
+            patient_data.get('height', ''),
+            patient_data.get('weight', ''),
+            patient_data.get('insurance', ''),
+            patient_data.get('policy_number', ''),
+            patient_data.get('medical_record_number', ''),
+            patient_data.get('hospital_record_number', '')
+        )
 
-    # Check if patient_id already exists to prevent duplicate entries
-    if int(patient_data['patient_id']) in df['patient_id'].dropna().astype(int).values:
-        return {"error": "Patient ID already exists in the CSV file."}
+        cursor.execute(insert_query, data)
+        connection.commit()
+        logging.info(f"Patient data inserted into DB: {patient_data}")
 
-    # Convert patient_data to DataFrame and concatenate with the existing DataFrame
-    new_row = pd.DataFrame([patient_data])
-    df = pd.concat([df, new_row], ignore_index=True)
+    except mysql.connector.Error as e:
+        logging.error(f"Database error: {e}")
 
-    df.to_csv(csv_file_path, index=False)
-    return None
-
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
 
 def update_patient_data_csv(patient_data, csv_file_path):
     if not os.path.isfile(csv_file_path):
         return {"error": "CSV file does not exist."}
 
     df = pd.read_csv(csv_file_path)
+    patient_id = patient_data.get('patient_id')
 
-    if 'patient_id' not in patient_data or not patient_data['patient_id']:
-        return {"error": "Patient ID is required for updating records."}
+    if patient_id is None or not str(patient_id).isdigit():
+        return {"error": "Invalid or missing patient ID."}
 
-    patient_id = patient_data['patient_id']
-    if patient_id not in df['patient_id'].astype(str).values:
-        return {"error": "Patient ID not found in CSV file."}
+    patient_id = int(patient_id)
+    if patient_id not in df['patient_id'].values:
+        return {"error": f"Patient ID {patient_id} not found in the CSV file."}
 
-    for key, value in patient_data.items():
-        if value is not None:
-            df.loc[df['patient_id'] == patient_id, key] = value
+    for field, value in patient_data.items():
+        if field in df.columns and field != 'patient_id':
+            df.loc[df['patient_id'] == patient_id, field] = value
 
     df.to_csv(csv_file_path, index=False)
     return None
 
-
-def convert_values(values):
-    return [int(value) if isinstance(value, np.int64) else value for value in values]
-
-def add_patient_data_db(patient_data):
-    conn = connect_to_db()
-    cursor = conn.cursor()
-
-    column_name_mapping = {
-        'first name': 'first_name',
-        'last name': 'last_name',
-        'gender': 'gender',
-        'dob': 'dob',
-        'height': 'height',
-        'weight': 'weight',
-        'insurance': 'insurance',
-        'policy_number': 'policy_number',
-        'medical_record_number': 'medical_record_number',
-        'hospital_record_number': 'hospital_record_number'
-    }
-
-    columns = ', '.join(f"`{column_name_mapping.get(key, key)}`" for key in patient_data.keys())  # Quote column names
-    placeholders = ', '.join(['%s'] * len(patient_data))
-    query = f"INSERT INTO patientinfo ({columns}) VALUES ({placeholders})"
-    values = convert_values(list(patient_data.values()))
-
-    try:
-        cursor.execute(query, values)
-        conn.commit()
-    except mysql.connector.Error as err:
-        conn.rollback()
-        return {"error": str(err)}
-    finally:
-        cursor.close()
-        conn.close()
-    return None
-
 def update_patient_data_db(patient_data):
     conn = connect_to_db()
     cursor = conn.cursor()
@@ -229,6 +199,7 @@ def update_patient_data_db(patient_data):
     column_name_mapping = {
         'first name': 'first_name',
         'last name': 'last_name',
+        'age': 'age',
         'gender': 'gender',
         'dob': 'dob',
         'height': 'height',
@@ -239,114 +210,166 @@ def update_patient_data_db(patient_data):
         'hospital_record_number': 'hospital_record_number'
     }
 
-    update_columns = ', '.join(f"`{column_name_mapping.get(key, key)}` = %s" for key in patient_data.keys())
-    query = f"UPDATE patientinfo SET {update_columns} WHERE patient_id = %s"
-    values = convert_values(list(patient_data.values()))
-    values.append(patient_data['patient_id'])  # Append the patient_id for the WHERE clause
+    update_fields = []
+    values = []
+    for field, value in patient_data.items():
+        db_field = column_name_mapping.get(field, field)
+        if db_field != 'patient_id':
+            update_fields.append(f"{db_field} = %s")
+            values.append(value)
+
+    update_fields_str = ", ".join(update_fields)
+    query = f"UPDATE patientinfo SET {update_fields_str} WHERE patient_id = %s"
+    values.append(patient_data.get('patient_id'))
 
     try:
         cursor.execute(query, values)
         conn.commit()
+        logging.info("Patient data updated successfully in DB.")
     except mysql.connector.Error as err:
+        logging.error(f"Error: {err}")
         conn.rollback()
-        return {"error": str(err)}
     finally:
         cursor.close()
         conn.close()
-    return None
 
+def search_patient_data(prompt, patient_data):
+    patient_data_json = json.dumps(patient_data, indent=4)
+    response = query_chain.run(prompt=prompt, patient_data=patient_data_json)
+    return response
 
-
-def update_patient_data_db(patient_data):
-    conn = connect_to_db()
-    cursor = conn.cursor()
-
-    column_name_mapping = {
-        'first name': 'first_name',
-        'last name': 'last_name',
-        'gender': 'gender',
-        'dob': 'dob',
-        'height': 'height',
-        'weight': 'weight',
-        'insurance': 'insurance',
-        'policy_number': 'policy_number',
-        'medical_record_number': 'medical_record_number',
-        'hospital_record_number': 'hospital_record_number'
-    }
-
-    update_columns = ', '.join(f"`{column_name_mapping.get(key, key)}` = %s" for key in patient_data.keys())
-    query = f"UPDATE patientinfo SET {update_columns} WHERE patient_id = %s"
-    values = list(patient_data.values())
-    values.append(patient_data['patient_id'])  # Append the patient_id for the WHERE clause
+def load_all_patient_data():
+    patientinfo_file = r"data\patientinfo.csv"
+    all_patient_data = []
 
     try:
-        cursor.execute(query, values)
-        conn.commit()
-    except mysql.connector.Error as err:
-        conn.rollback()
-        return {"error": str(err)}
-    finally:
-        cursor.close()
-        conn.close()
-    return None
+        with open(patientinfo_file, mode='r') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                all_patient_data.append(row)
+    except FileNotFoundError:
+        logging.error(f"Error: {patientinfo_file} not found.")
 
+    return all_patient_data
 
-@app.route('/process_patient', methods=['POST'])
-def process_patient():
-    data = request.json
-    prompt = data.get('prompt')
+# Load patient data when the app starts
+patient_data = load_all_patient_data()
 
-    if not prompt:
-        return jsonify({"error": "No prompt provided."}), 400
+@app.route('/')
+def index():
+    return render_template('chat.html')
 
-    patient_data = extract_patient_info(prompt)
+@app.route('/process', methods=['POST'])
+def process():
+    user_input = request.json.get('input')
+    csv_file_path = "data/patientinfo.csv"
 
-    if 'error' in patient_data and patient_data['error'] == "Missing fields":
-        return jsonify(patient_data), 400
+    logging.debug(f"Processing input: {user_input}")
 
-    csv_error = add_patient_data_csv(patient_data, r"data\patientinfo.csv")
-    if csv_error:
-        return jsonify(csv_error), 400
+    patient_data = extract_patient_info(user_input)
 
-    db_error = add_patient_data_db(patient_data)
-    if db_error:
-        return jsonify(db_error), 400
+    if 'error' in patient_data:
+        logging.error(f"Extraction error: {patient_data['error']}")
+        return jsonify({"error": patient_data['error']})
 
-    return jsonify({"success": "Patient data processed successfully."}), 200
+    required_fields = [
+        'first name', 'last name', 'gender', 'dob', 'height', 'weight',
+        'insurance', 'policy_number', 'medical_record_number', 'hospital_record_number'
+    ]
 
-
-@app.route('/save_patient', methods=['POST'])
-def save_patient():
-    data = request.json
-    patient_id = data.get('patient_id')
-
-    if not patient_id:
-        return jsonify({"error": "Patient ID is required."}), 400
-
-    patient_data = temporary_storage.get(patient_id)
-
-    if not patient_data:
-        return jsonify({"error": "No data found for the provided Patient ID."}), 404
-
-    # Check if there are still missing fields
-    missing_fields = [field for field in patient_data if not patient_data[field]]
+    missing_fields = [field for field in required_fields if not patient_data.get(field)]
 
     if missing_fields:
-        return jsonify({"error": "Incomplete patient data", "missing_fields": missing_fields}), 400
+        logging.info(f"Missing fields: {missing_fields}")
+        return jsonify({
+            "status": "missing",
+            "missing_fields": missing_fields,
+            "patient_data": patient_data
+        })
 
-    csv_error = add_patient_data_csv(patient_data, r"data\patientinfo.csv")
+    patient_data['patient_id'] = generate_patient_id(csv_file_path)
+    csv_error = update_patient_data_csv(patient_data, csv_file_path)
+
     if csv_error:
-        return jsonify(csv_error), 400
+        return jsonify(csv_error)
 
-    db_error = add_patient_data_db(patient_data)
-    if db_error:
-        return jsonify(db_error), 400
+    save_to_db(patient_data)
+    return jsonify({
+        "status": "success",
+        "patient_data": patient_data
+    })
 
-    # Remove from temporary storage
-    temporary_storage.pop(patient_id, None)
+@app.route('/update_missing_data', methods=['POST'])
+def update_missing_data():
+    data = request.json
 
-    return jsonify({"success": "Patient data saved successfully."}), 200
+    if not data:
+        return jsonify({"error": "No data provided."})
 
+    # Extract patient data and missing fields
+    missing_fields = data.get('missing_fields', [])
+    patient_data = data.get('patient_data', {})
+
+    # Log the missing fields and the data received
+    logging.debug(f"Received missing fields: {missing_fields}")
+    logging.debug(f"Received patient data: {patient_data}")
+
+    # Fill in the missing fields if they are not already provided in patient_data
+    for field in missing_fields:
+        if field not in patient_data:
+            patient_data[field] = ''  # Set to empty string or a default value
+
+    # Ensure patient ID is provided and valid
+    patient_id = patient_data.get('patient_id')
+    if not patient_id or not str(patient_id).isdigit():
+        return jsonify({"error": "Invalid or missing patient ID."})
+
+    patient_id = int(patient_id)
+    csv_file_path = "data/patientinfo.csv"
+
+    # Update the CSV file
+    csv_error = update_patient_data_csv(patient_data, csv_file_path)
+    if csv_error:
+        return jsonify(csv_error)
+
+    # Update the database
+    update_patient_data_db(patient_data)
+
+    return jsonify({
+        "status": "success",
+        "patient_data": patient_data
+    })
+
+
+@app.route('/update', methods=['POST'])
+def update():
+    user_input = request.json.get('input')
+    csv_file_path = "data/patientinfo.csv"
+
+    logging.debug(f"Updating data with input: {user_input}")
+
+    patient_data = extract_patient_info(user_input)
+    update_error = update_patient_data_csv(patient_data, csv_file_path)
+
+    if update_error:
+        logging.error(f"Update error: {update_error}")
+        return jsonify(update_error)
+
+    update_patient_data_db(patient_data)
+    return jsonify({
+        "status": "success",
+        "patient_data": patient_data
+    })
+
+@app.route('/retrieve', methods=['GET'])
+def retrieve():
+    query = request.args.get('query')
+
+    if not query:
+        return jsonify({"error": "No query parameter provided."})
+
+    response = search_patient_data(query, patient_data)
+    return jsonify({"response": response})
 
 if __name__ == '__main__':
     app.run(debug=True)

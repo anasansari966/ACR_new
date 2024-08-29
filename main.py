@@ -10,9 +10,12 @@ import mysql.connector
 from mysql.connector import Error
 from dotenv import load_dotenv
 import logging
+from flask_cors import CORS
+
+load_dotenv()
 
 app = Flask(__name__)
-load_dotenv()
+CORS(app)
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG,
@@ -246,4 +249,4 @@ def save_to_db(patient_data):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=8000, host="0.0.0.0")

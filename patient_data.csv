@@ -1,0 +1,6 @@
+dob,first name,gender,height,weight,insurance,last name,policy_number,medical_record_number,hospital_record_number
+1993-10-22,Mia,Female,162,57,Blue Shield,Clark,BS6789012,MRN123456,HRN654321
+1993-10-22,Mia,Female,162,57,Blue Shield,Clark,BS6789012,MRN123456,HRN654321
+1993-10-22,Mia,Female,162,57,Blue Shield,Clark,BS6789012,MRN123456,HRN654321
+1993-10-22,Mia,Female,162,57,Blue Shield,Clark,BS6789012,MRN147852,HRN963258
+MRN147852,HRN963258

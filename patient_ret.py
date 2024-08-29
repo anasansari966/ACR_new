@@ -8,9 +8,12 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables from the .env file
+from flask_cors import CORS
+
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 # Load the OpenAI API key from the environment variables
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -76,4 +79,4 @@ def query():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=8001, host="0.0.0.0")

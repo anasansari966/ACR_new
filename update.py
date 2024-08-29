@@ -10,9 +10,12 @@ from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from dotenv import load_dotenv
+from flask_cors import CORS
+
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 # Database connection configuration
 dbconfig = {
@@ -221,4 +224,4 @@ def process_patient():
     return jsonify({"message": "Patient data processed successfully.", "data": patient_data}), 200
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=800, host="0.0.0.0")

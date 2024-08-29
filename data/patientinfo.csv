@@ -7,3 +7,14 @@ patient_id,first name,last name,gender,dob,height,weight,insurance,policy_number
 6,Olivia,Johnson,female,1989-09-07,160,60,Blue Shield,BS4567890,MR004,HR004
 7,Olivia,Johnson,Female,1989-09-07,160,60,Blue Shield,BS4567890,147852,123456
 8,James,Davis,male,1983-05-21,185,85,Humana,HUM2345678,123456,147852
+9,Mia,Clark,female,1993-10-22,162,57,Blue Shield,BS6789012,MR010,HR010
+10,Mia,Clark,Female,1993-10-22,162,57,Blue Shield,BS6789012,123456,365412
+11,Mia,Clark,Female,1993-10-22,162,57,Blue Shield,BS6789012,MR010,HR010
+12,William,Lee,male,1991-08-18,180,75,Cigna,CIG1234567,123456789,987654321
+13,Isabella,Anderson,Female,1987-07-30,167,63,United Healthcare,UHC9876543,123456,123456
+14,Isabella,Anderson,Female,1987-07-30,167,63,United Healthcare,UHC9876543,123456,123456
+15,Isabella,Anderson,Female,1987-07-30,167,63,United Healthcare,UHC9876543,123456,123456
+16,James,Davis,male,1983-05-21,185,85,Humana,HUM2345678,147852,123456
+17,Olivia,Johnson,Female,1989-09-07,160,60,Blue Shield,BS4567890,145632,147852
+18,Olivia,Johnson,Female,1989-09-07,160,60,Blue Shield,BS4567890,,
+19,Narendra,Gole,Male,1989-09-07,160,60,NA,NA,NA,NA
