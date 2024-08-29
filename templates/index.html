@@ -3,15 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot Assistant</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>Patient Data Entry</title>
+    <script>
+        async function submitForm(event) {
+            event.preventDefault();
+
+            const formData = new FormData(document.getElementById('patientForm'));
+            const data = Object.fromEntries(formData);
+
+            const response = await fetch('/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'missing_fields') {
+                // Handle missing fields
+                let promptFields = result.fields;
+                let missingFieldsHtml = promptFields.map(field => `
+                    <label for="${field}">${field.replace('_', ' ')}:</label>
+                    <input type="text" id="${field}" name="${field}" required><br>
+                `).join('');
+
+                document.getElementById('formContainer').innerHTML = `
+                    <form id="completeForm" onsubmit="submitCompleteForm(event)">
+                        ${missingFieldsHtml}
+                        <input type="hidden" name="patient_id" value="${result.data.patient_id}">
+                        <input type="submit" value="Submit">
+                    </form>
+                `;
+            } else if (result.status === 'success') {
+                alert('Data saved successfully!');
+                document.getElementById('formContainer').innerHTML = '<p>Thank you! Your data has been saved.</p>';
+            } else {
+                alert('An error occurred: ' + result.message);
+            }
+        }
+
+        async function submitCompleteForm(event) {
+            event.preventDefault();
+
+            const formData = new FormData(document.getElementById('completeForm'));
+            const data = Object.fromEntries(formData);
+
+            const response = await fetch('/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                alert('Data saved successfully!');
+                document.getElementById('formContainer').innerHTML = '<p>Thank you! Your data has been saved.</p>';
+            } else {
+                alert('An error occurred: ' + result.message);
+            }
+        }
+    </script>
 </head>
 <body>
-    <div class="container">
-        <h1>Welcome to the Chatbot Assistant</h1>
-        <div class="button-container">
-            <a href="/chat"><button>Start Chat</button></a>
-        </div>
+    <div id="formContainer">
+        <form id="patientForm" onsubmit="submitForm(event)">
+            <label for="first_name">First Name:</label>
+            <input type="text" id="first_name" name="first_name" required><br>
+            <label for="last_name">Last Name:</label>
+            <input type="text" id="last_name" name="last_name" required><br>
+            <label for="gender">Gender:</label>
+            <input type="text" id="gender" name="gender" required><br>
+            <label for="dob">Date of Birth:</label>
+            <input type="date" id="dob" name="dob" required><br>
+            <label for="height">Height:</label>
+            <input type="text" id="height" name="height" required><br>
+            <label for="weight">Weight:</label>
+            <input type="text" id="weight" name="weight" required><br>
+            <label for="insurance">Insurance:</label>
+            <input type="text" id="insurance" name="insurance" required><br>
+            <label for="policy_number">Policy Number:</label>
+            <input type="text" id="policy_number" name="policy_number" required><br>
+            <label for="medical_record_number">Medical Record Number:</label>
+            <input type="text" id="medical_record_number" name="medical_record_number" required><br>
+            <label for="hospital_record_number">Hospital Record Number:</label>
+            <input type="text" id="hospital_record_number" name="hospital_record_number" required><br>
+            <input type="submit" value="Submit">
+        </form>
     </div>
 </body>
 </html>

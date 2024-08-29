@@ -1,132 +1,109 @@
+
+chat.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat with Bot</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>Chat Interface</title>
+    <style>
+        /* Add some basic styling */
+        #chat-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            height: 400px;
+            overflow-y: auto;
+        }
+        .message {
+            padding: 10px;
+            margin: 5px 0;
+        }
+        .user-message {
+            background-color: #e0f7fa;
+            border-radius: 10px;
+        }
+        .system-message {
+            background-color: #fff3e0;
+            border-radius: 10px;
+        }
+    </style>
 </head>
 <body>
-    <div class="chat-container">
-        <h1>Chatbot Assistant</h1>
-        <div class="chat-box" id="chat-box">
-            <!-- Chat messages will be appended here -->
-        </div>
-        <div class="input-container">
-            <input type="text" id="user-input" placeholder="Type your message here...">
-            <button id="send-btn" onclick="sendMessage()">Send</button>
-        </div>
-    </div>
+    <div id="chat-container"></div>
+    <input type="text" id="user-input" placeholder="Type your message here" />
+    <button onclick="sendMessage()">Send</button>
 
     <script>
-        let extractedData = null;
+        let patientData = {};
         let missingFields = [];
-        let isConfirmDisabled = false;  // Track if confirm button is disabled
 
-        function sendMessage() {
+        function appendMessage(content, type) {
+            const chatContainer = document.getElementById('chat-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            messageDiv.innerText = content;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
             const userInput = document.getElementById('user-input').value;
-            if (userInput.trim() === '') return;
 
-            // Append user's message to chat
-            appendMessage('user-message', userInput);
+            if (missingFields.length > 0) {
+                // Handle input for missing fields
+                const field = missingFields[0];
+                await updatePatientData(userInput, field);
+                document.getElementById('user-input').value = '';
+                return;
+            }
 
-            // Send message to the backend
-            fetch('/get-response', {
+            appendMessage(userInput, 'user');
+
+            const response = await fetch('/process', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ message: userInput }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Append bot's response to chat
-                appendMessage('bot-message', data.response);
-
-                // If there's extracted data, show the preview within the chat
-                if (data.preview && Object.keys(data.preview).length > 0) {
-                    extractedData = data.preview;
-                    const previewMessage = `
-                        <strong>Preview Extracted Data:</strong><br>
-                        ${formatDataPreview(extractedData)}
-                        <br>
-                        <button onclick="confirmData()" ${isConfirmDisabled ? 'disabled' : ''}>Confirm</button>
-                        <button onclick="cancelData()">Cancel</button>
-                    `;
-                    appendMessage('bot-message', previewMessage);
-                }
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ input: userInput })
             });
 
-            // Clear input field
+            const data = await response.json();
+
+            if (data.error) {
+                appendMessage(`Error: ${data.error}`, 'system');
+            } else if (data.missing_fields) {
+                missingFields = data.missing_fields;
+                patientData = data.preview;
+                const field = missingFields[0];
+                appendMessage(`Please enter ${field}:`, 'system');
+            } else {
+                patientData = data.preview;
+                appendMessage(`System: ${JSON.stringify(patientData, null, 2)}`, 'system');
+            }
+
             document.getElementById('user-input').value = '';
         }
 
-        function formatDataPreview(data) {
-            let formatted = '<ul>';
-            for (const [key, value] of Object.entries(data)) {
-                formatted += `<li><strong>${capitalizeFirstLetter(key.replace('_', ' '))}:</strong> ${value}</li>`;
-            }
-            formatted += '</ul>';
-            return formatted;
-        }
-
-        function capitalizeFirstLetter(string) {
-            return string.charAt(0).toUpperCase() + string.slice(1);
-        }
-
-        function appendMessage(className, message) {
-            const chatBox = document.getElementById('chat-box');
-            const messageElement = document.createElement('div');
-            messageElement.className = `message ${className}`;
-            messageElement.innerHTML = message;
-            chatBox.appendChild(messageElement);
-            chatBox.scrollTop = chatBox.scrollHeight;  // Scroll to the bottom
-        }
-
-        function confirmData() {
-            if (isConfirmDisabled) return;
-
-            // Disable the confirm button to prevent multiple clicks
-            isConfirmDisabled = true;
-
-            fetch('/confirm-save', {
+        async function updatePatientData(input, field) {
+            const response = await fetch('/update', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ patient_data: extractedData }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    appendMessage('bot-message', data.message);
-                } else if (data.status === 'missing') {
-                    handleMissingFields(data.fields);
-                } else {
-                    appendMessage('bot-message', `Error: ${data.message}`);
-                }
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ input, field, data: patientData })
             });
-        }
 
-        function handleMissingFields(fields) {
-            for (const field of fields) {
-                appendMessage('bot-message', `Please enter the value for '${field}': <input type="text" id="${field}" placeholder="${field}"> <button onclick="submitMissingValue('${field}')">Submit</button>`);
+            const data = await response.json();
+
+            if (data.missing_fields) {
+                missingFields = data.missing_fields;
+                patientData = data.preview;
+                const field = missingFields[0];
+                appendMessage(`Please enter ${field}:`, 'system');
+            } else {
+                appendMessage(`System: ${JSON.stringify(data.preview, null, 2)}`, 'system');
+                missingFields = [];
+                patientData = {};
             }
-        }
-
-        function submitMissingValue(field) {
-            const value = document.getElementById(field).value;
-            if (value.trim() === '') return;
-
-            extractedData[field.replace(' ', '_')] = value;
-            document.getElementById(field).parentElement.remove();  // Remove the input and button
-            confirmData();  // Re-check if the data is complete
-        }
-
-        function cancelData() {
-            appendMessage('bot-message', "Enter data from insert");
-            extractedData = null;  // Clear extracted data
-            isConfirmDisabled = false;  // Re-enable the confirm button
         }
     </script>
 </body>

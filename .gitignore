@@ -9,3 +9,4 @@ patientinfo_extension.py
 pipeline.py
 retrieve.py
 server.py
+insert.py

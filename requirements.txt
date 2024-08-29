@@ -4,3 +4,5 @@ flask
 langchain_openai
 langchain
 python-dotenv
+langchain
+redis

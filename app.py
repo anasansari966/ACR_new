@@ -11,10 +11,12 @@ from langchain.chains import LLMChain
 from dotenv import load_dotenv
 from dateutil import parser
 import numpy as np
+from flask_cors import CORS
 
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 # Database connection configuration
 dbconfig = {
@@ -176,44 +178,28 @@ def update_patient_data_csv(patient_data, csv_file_path):
 
     df.to_csv(csv_file_path, index=False)
     return None
+
 def retrieve_patient_info(patient_id):
-    # Specify the correct path to the CSV file
     csv_file_path = 'data/patientinfo.csv'
 
-    # Check if the file exists
     if not os.path.isfile(csv_file_path):
         return {"error": "CSV file not found."}
 
-    # Read the CSV file
     df = pd.read_csv(csv_file_path)
 
-    # Print the contents of the DataFrame for debugging
-    print("CSV DataFrame Contents:")
-    print(df)
-
-    # Ensure patient_id is compared as an integer
     try:
         patient_id = int(patient_id)
     except ValueError:
         return {"error": "Invalid patient ID format."}
 
-    # Check the column names and data types
-    print("Column Names:")
-    print(df.columns)
-    print("Data Types:")
-    print(df.dtypes)
-
-    # Convert patient_id column to integers for comparison
     df['patient_id'] = pd.to_numeric(df['patient_id'], errors='coerce')
 
-    # Retrieve patient information based on patient_id
     patient_info = df[df['patient_id'] == patient_id].to_dict(orient='records')
 
     if not patient_info:
         return {"error": "Patient ID not found in CSV file."}
 
     return patient_info[0]
-
 
 def convert_values(values):
     return [int(value) if isinstance(value, np.int64) else value for value in values]
@@ -307,7 +293,6 @@ def generate_natural_language_description(patient_data):
     return description
 
 def determine_operation(prompt):
-    # Expanded lists of keywords for different operations
     add_keywords = [
         'add', 'new', 'create', 'insert', 'include', 'register', 'enlist', 'submit',
         'add in', 'introduce', 'record', 'incorporate', 'append', 'attach', 'enter'
@@ -334,8 +319,6 @@ def determine_operation(prompt):
     else:
         return 'unknown'
 
-
-
 @app.route('/process_text', methods=['POST'])
 def process_text():
     data = request.json
@@ -344,7 +327,6 @@ def process_text():
     if not prompt:
         return jsonify({"error": "Text prompt is required."}), 400
 
-    # Determine the operation type
     operation = determine_operation(prompt)
 
     if operation == 'retrieve':
@@ -358,9 +340,8 @@ def process_text():
             description = generate_natural_language_description(patient_info)
             return jsonify({"description": description}), 200
         else:
-            return jsonify({"error": "Patient ID not found in the prompt."}), 400
+            return jsonify({"error": "Please enter valid Patient ID."}), 400
 
-    # Extract patient information from the prompt
     extracted_info = extract_patient_info(prompt)
 
     if 'error' in extracted_info:
@@ -393,7 +374,40 @@ def process_text():
     else:
         return jsonify({"error": "Invalid operation. Use 'add', 'update', or 'retrieve'."}), 400
 
+@app.route('/provide_missing_data', methods=['POST'])
+def provide_missing_data():
+    data = request.json
+    patient_id = data.get('patient_id')
+    field = data.get('field')
+    value = data.get('value')
 
+    if not patient_id or not field or value is None:
+        return jsonify({"error": "Patient ID, field, and value are required."}), 400
+
+    patient_id = str(patient_id)
+    if patient_id not in temporary_storage:
+        return jsonify({"error": "Patient ID not found in temporary storage."}), 404
+
+    patient_data = temporary_storage[patient_id]
+    patient_data[field] = value
+
+    missing_fields = [f for f in patient_data if patient_data[f] in [None, '']]
+    if not missing_fields:
+        # All fields provided; save to CSV and DB
+        csv_error = add_patient_data_csv(patient_data, 'data/patientinfo.csv')
+        if csv_error:
+            return jsonify(csv_error), 400
+
+        db_error = add_patient_data_db(patient_data)
+        if db_error:
+            return jsonify(db_error), 400
+
+        # Clear temporary storage
+        del temporary_storage[patient_id]
+
+        return jsonify({"message": "Patient data added successfully."}), 200
+    else:
+        return jsonify({"message": "Missing fields", "missing_fields": missing_fields}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
