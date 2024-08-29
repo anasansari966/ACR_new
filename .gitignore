@@ -12,3 +12,5 @@ server.py
 insert.py
 app.py
 insert.py
+patient_data.csv
+static
