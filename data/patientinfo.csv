@@ -13,8 +13,8 @@ patient_id,first name,last name,gender,dob,height,weight,insurance,policy_number
 12,William,Lee,male,1991-08-18,180,75,Cigna,CIG1234567,123456789,987654321
 13,Isabella,Anderson,Female,1987-07-30,167,63,United Healthcare,UHC9876543,123456,123456
 14,Isabella,Anderson,Female,1987-07-30,167,63,United Healthcare,UHC9876543,123456,123456
-15,Isabella,Anderson,Female,1987-07-30,167,63,United Healthcare,UHC9876543,123456,123456
+15,Anas,Ansari,Female,1987-07-30,167,63,United Healthcare,UHC9876543,123456,123456
 16,James,Davis,male,1983-05-21,185,85,Humana,HUM2345678,147852,123456
 17,Olivia,Johnson,Female,1989-09-07,160,60,Blue Shield,BS4567890,145632,147852
 18,Olivia,Johnson,Female,1989-09-07,160,60,Blue Shield,BS4567890,,
-19,Narendra,Gole,Male,1989-09-07,160,60,NA,NA,NA,NA
+19,Narendra,Gole,Male,1989-09-07,160,60,,,,

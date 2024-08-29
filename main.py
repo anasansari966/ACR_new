@@ -66,7 +66,7 @@ def chat():
 
 @app.route('/process', methods=['POST'])
 def process():
-    user_input = request.json.get('input')
+    user_input = request.json.get('prompt')
     csv_file_path = "data/patientinfo.csv"
 
     logging.debug(f"Processing input: {user_input}")
@@ -205,11 +205,11 @@ def generate_patient_id(csv_file_path):
 def save_to_db(patient_data):
     try:
         connection = mysql.connector.connect(
-            host='localhost',
+            host='database-2.cpgwwc6uys5f.us-east-1.rds.amazonaws.com',
             port='3306',
-            user='root',
-            password='anas123',
-            database='acr1'
+            user='admin',
+            password='acrroot987654321',
+            database='user_information'
         )
 
         cursor = connection.cursor()

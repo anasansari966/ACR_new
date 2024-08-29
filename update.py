@@ -19,11 +19,11 @@ CORS(app)
 
 # Database connection configuration
 dbconfig = {
-    "host": "localhost",
-    "port": "3306",
-    "user": "root",
-    "password": "anas123",
-    "database": "acr1"
+    "host":"database-2.cpgwwc6uys5f.us-east-1.rds.amazonaws.com",
+    "port":3306,
+    "user":"admin",
+    "password":"acrroot987654321",
+    "database":"user_information"
 }
 
 # Initialize connection pool
@@ -224,4 +224,4 @@ def process_patient():
     return jsonify({"message": "Patient data processed successfully.", "data": patient_data}), 200
 
 if __name__ == "__main__":
-    app.run(debug=True, port=800, host="0.0.0.0")
+    app.run(debug=True, port=8002, host="0.0.0.0")
